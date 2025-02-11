@@ -129,7 +129,7 @@ class IslamicPrayerTimeSensor(
         
         # Handle Maghrib adjustment
         if self.entity_description.key.lower() == 'maghrib':
-            prayer_time = prayer_time - timedelta(minutes=15)
+            prayer_time = prayer_time - timedelta(minutes=0)
         
         # Convert to timezone-aware datetime
         local_tz = pytz.timezone('Africa/Cairo')
