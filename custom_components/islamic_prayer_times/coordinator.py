@@ -47,7 +47,6 @@ class IslamicPrayerDataUpdateCoordinator(DataUpdateCoordinator[dict[str, datetim
             name=DOMAIN,
         )
         self.pray_times = PrayTimes()
-        self.pray_times.setMethod('MWL')
         self.pray_times.adjust({'fajr': 19.5, 'isha': 17.5})
         self.pray_times.asrMethod = 0
         self.timezone = pytz.timezone('Africa/Cairo')
