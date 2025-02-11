@@ -7,6 +7,8 @@ from typing import Any, cast
 
 from prayer_times_calculator import PrayerTimesCalculator, exceptions
 from requests.exceptions import ConnectionError as ConnError
+from praytimes import PrayTimes
+import pytz
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_LATITUDE, CONF_LOCATION, CONF_LONGITUDE
@@ -45,6 +47,13 @@ class IslamicPrayerDataUpdateCoordinator(DataUpdateCoordinator[dict[str, datetim
             _LOGGER,
             name=DOMAIN,
         )
+        self.pray_times = PrayTimes()
+        self.pray_times.setMethod('MWL')
+        self.pray_times.adjust({'fajr': 19.5, 'isha': 17.5})
+        self.pray_times.asrMethod = 0
+        self.timezone = dt_util.get_time_zone(self.hass.config.time_zone)
+        self.latitude = 31.2156
+        self.longitude = 29.9553
 
     @property
     def calc_method(self) -> str:
@@ -79,19 +88,14 @@ class IslamicPrayerDataUpdateCoordinator(DataUpdateCoordinator[dict[str, datetim
 
     def get_new_prayer_times(self) -> dict[str, str]:
         """Fetch prayer times for today."""
-        calc = PrayerTimesCalculator(
-            latitude=self.config_entry.data[CONF_LOCATION][CONF_LATITUDE],
-            longitude=self.config_entry.data[CONF_LOCATION][CONF_LONGITUDE],
-            calculation_method=self.calc_method,
-            latitudeAdjustmentMethod=self.lat_adj_method,
-            midnightMode=self.midnight_mode,
-            school=self.school,
-            date=str(dt_util.now().date()),
-            tune=bool(self.tune_params),
-            **self.tune_params,
-            iso8601=True,
-        )
-        return cast(dict[str, Any], calc.fetch_prayer_times())
+        current_date = datetime.now()
+        current_date_list = [current_date.year, current_date.month, current_date.day]
+        timezone_offset = self.timezone.utcoffset(current_date).total_seconds() / 3600
+        times = self.pray_times.getTimes(current_date_list, (self.latitude, self.longitude), timezone_offset)
+        maghrib_time = datetime.strptime(times['maghrib'], '%H:%M')
+        earlier_maghrib_time = (maghrib_time - timedelta(minutes=15)).strftime('%H:%M')
+        times['maghrib'] = earlier_maghrib_time
+        return times
 
     async def async_request_update(self, *_) -> None:
         """Request update from coordinator."""
@@ -103,7 +107,7 @@ class IslamicPrayerDataUpdateCoordinator(DataUpdateCoordinator[dict[str, datetim
             prayer_times = await self.hass.async_add_executor_job(
                 self.get_new_prayer_times
             )
-        except (exceptions.InvalidResponseError, ConnError) as err:
+        except Exception as err:
             async_call_later(self.hass, 60, self.async_request_update)
             raise UpdateFailed from err
 

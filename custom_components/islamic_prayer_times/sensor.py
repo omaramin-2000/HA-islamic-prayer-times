@@ -1,7 +1,7 @@
 """Platform to retrieve Islamic prayer times information for Home Assistant."""
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -14,9 +14,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+import homeassistant.util.dt as dt_util
 
 from .const import CONF_HIJRI_DATE, DOMAIN
 from .coordinator import IslamicPrayerDataUpdateCoordinator
+
+from praytimes import PrayTimes
+import pytz
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -91,11 +95,25 @@ class IslamicPrayerTimeSensor(
             identifiers={(DOMAIN, coordinator.config_entry.entry_id)},
             entry_type=DeviceEntryType.SERVICE,
         )
+        self.pray_times = PrayTimes()
+        self.pray_times.setMethod('MWL')
+        self.pray_times.adjust({'fajr': 19.5, 'isha': 17.5})
+        self.pray_times.asrMethod = 0
+        self.timezone = dt_util.get_time_zone(coordinator.hass.config.time_zone)
+        self.latitude = 31.2156
+        self.longitude = 29.9553
 
     @property
     def native_value(self) -> datetime:
         """Return the state of the sensor."""
-        return self.coordinator.data[self.entity_description.key]
+        current_date = datetime.now()
+        current_date_list = [current_date.year, current_date.month, current_date.day]
+        timezone_offset = self.timezone.utcoffset(current_date).total_seconds() / 3600
+        times = self.pray_times.getTimes(current_date_list, (self.latitude, self.longitude), timezone_offset)
+        maghrib_time = datetime.strptime(times['maghrib'], '%H:%M')
+        earlier_maghrib_time = (maghrib_time - timedelta(minutes=15)).strftime('%H:%M')
+        times['maghrib'] = earlier_maghrib_time
+        return times[self.entity_description.key.lower()]
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
