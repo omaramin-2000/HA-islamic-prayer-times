@@ -99,7 +99,7 @@ class IslamicPrayerTimeSensor(
         self.pray_times.setMethod('MWL')
         self.pray_times.adjust({'fajr': 19.5, 'isha': 17.5})
         self.pray_times.asrMethod = 0
-        self.timezone = dt_util.get_time_zone(coordinator.hass.config.time_zone)
+        self.timezone = pytz.timezone('Africa/Cairo')
         self.latitude = 31.2156
         self.longitude = 29.9553
 
