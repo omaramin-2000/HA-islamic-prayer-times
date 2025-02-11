@@ -116,10 +116,25 @@ class IslamicPrayerTimeSensor(
         current_date_list = [current_date.year, current_date.month, current_date.day]
         timezone_offset = self.timezone.utcoffset(current_date).total_seconds() / 3600
         times = self.pray_times.getTimes(current_date_list, (self.latitude, self.longitude), timezone_offset)
-        maghrib_time = datetime.strptime(times['maghrib'], '%H:%M')
-        earlier_maghrib_time = (maghrib_time - timedelta(minutes=15)).strftime('%H:%M')
-        times['maghrib'] = earlier_maghrib_time
-        return times[self.entity_description.key.lower()]
+        
+        # Convert string time to datetime
+        time_str = times[self.entity_description.key.lower()]
+        time_parts = time_str.split(':')
+        prayer_time = datetime.now().replace(
+            hour=int(time_parts[0]),
+            minute=int(time_parts[1]),
+            second=0,
+            microsecond=0
+        )
+        
+        # Handle Maghrib adjustment
+        if self.entity_description.key.lower() == 'maghrib':
+            prayer_time = prayer_time - timedelta(minutes=15)
+        
+        # Convert to timezone-aware datetime
+        local_tz = pytz.timezone('Africa/Cairo')
+        local_dt = local_tz.localize(prayer_time)
+        return local_dt.astimezone(pytz.UTC)
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any]:
