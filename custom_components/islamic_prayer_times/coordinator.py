@@ -80,11 +80,6 @@ class IslamicPrayerDataUpdateCoordinator(DataUpdateCoordinator[dict[str, datetim
         """Return the school."""
         return self.config_entry.options.get(CONF_SCHOOL, DEFAULT_SCHOOL)
 
-    @property
-    def tune_params(self) -> dict[str, int]:
-        """Return the time tuning values."""
-        return cast(dict[str, int], self.config_entry.options.get(CONF_TUNE, {}))
-
     def get_new_prayer_times(self) -> dict[str, str]:
         """Fetch prayer times for today."""
         current_date = datetime.now()
